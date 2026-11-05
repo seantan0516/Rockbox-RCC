@@ -1,0 +1,107 @@
+name: Build Rockbox RCC Android APK
+
+on:
+  push:
+    branches:
+      - android13-fix-work
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java for Android SDK manager
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install legacy Android platform and build tools
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager --install "platform-tools" "platforms;android-19" "build-tools;19.1.0"
+
+      - name: Install Java 8 for the legacy Android build
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Install host build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bison flex perl zip unzip wget lib32stdc++6
+
+      - name: Install legacy NDK with ARMv5 GCC toolchain
+        run: |
+          curl -fL --retry 3 -o /tmp/android-ndk-r10e-linux-x86_64.bin https://dl.google.com/android/ndk/android-ndk-r10e-linux-x86_64.bin
+          chmod +x /tmp/android-ndk-r10e-linux-x86_64.bin
+          /tmp/android-ndk-r10e-linux-x86_64.bin -y
+          NDK="$GITHUB_WORKSPACE/android-ndk-r10e"
+          TOOLCHAIN="$NDK/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin"
+          test -x "$TOOLCHAIN/arm-linux-androideabi-gcc"
+          "$TOOLCHAIN/arm-linux-androideabi-gcc" --version
+          # Verify GCC can select the bundled BFD linker and emit the same map files used by codec links.
+          printf "int main(void) { return 0; }\n" | "$TOOLCHAIN/arm-linux-androideabi-gcc" -fuse-ld=bfd -x c - -Wl,-Map,/tmp/android-bfd-test.map -o /tmp/android-bfd-test
+          test -s /tmp/android-bfd-test.map
+          "$TOOLCHAIN/arm-linux-androideabi-gcc" -### -fuse-ld=bfd -x c - -o /tmp/android-bfd-test 2>&1 | grep -E "ld\.bfd|/ld.bfd"
+          echo "ANDROID_NDK_PATH=$NDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_PATH=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+      - name: Configure Rockbox Android target
+        run: |
+          mkdir -p build-android
+          cd build-android
+          ../tools/configure --target=android --lcdwidth=1080 --lcdheight=2340 --eq-bands=30
+
+      - name: Build native core and codecs
+        run: make -C build-android -j2
+
+      - name: Package Rockbox resources and APK
+        run: |
+          make -C build-android zip
+          make -C build-android apk
+
+      - name: Verify APK package, ABI, signature, alignment and native relocations
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find build-android -maxdepth 1 -type f -name 'rockbox-rcc-*.apk' -print -quit)"
+          test -n "$APK"
+          echo "APK=$APK" >> "$GITHUB_ENV"
+          "$ANDROID_HOME/build-tools/19.1.0/aapt" dump badging "$APK" | tee /tmp/badging.txt
+          grep -q "package: name='org.rockbox'" /tmp/badging.txt
+          unzip -Z1 "$APK" | grep -q '^lib/armeabi/librockbox.so$'
+          mkdir -p /tmp/apk-check
+          unzip -q "$APK" 'lib/armeabi/*.so' -d /tmp/apk-check
+          test -f /tmp/apk-check/lib/armeabi/librockbox.so
+          for so in /tmp/apk-check/lib/armeabi/*.so; do
+            if readelf -d "$so" | grep -E 'TEXTREL|FLAGS.*TEXTREL'; then
+              echo "ERROR: text relocations remain in $so"
+              exit 1
+            fi
+          done
+          "$ANDROID_HOME/build-tools/19.1.0/zipalign" -c 4 "$APK"
+          jarsigner -verify "$APK"
+          sha256sum "$APK" | tee /tmp/apk-sha256.txt
+          echo "Verified APK: $APK"
+
+      - name: Upload verified APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: rockbox-rcc-android13-armeabi
+          path: ${{ env.APK }}
+          if-no-files-found: error
+          retention-days: 14

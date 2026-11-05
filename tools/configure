@@ -763,15 +763,17 @@ androidcc () {
     fi
     buildhost=$(uname | tr "[:upper:]" "[:lower:]")
     GCCOPTS=`echo $CCOPTS | sed -e s/-ffreestanding// -e s/-nostdlib// -e s/-Wundef//`
+    # Android loads these outputs as shared libraries; every contributing object must be PIC.
+    GCCOPTS="$GCCOPTS -fPIC"
     LDOPTS="$LDOPTS -ldl -llog"
     if [ "$modelname" != "ibassodx50" ] && [ "$modelname" != "ibassodx90" ]; then
         LDOPTS="$LDOPTS -Wl,-soname,librockbox.so -shared"
     fi
     SHARED_LDFLAG="-shared"
-    SHARED_CFLAGS=''
-    GLOBAL_LDOPTS="-Wl,-z,defs -Wl,-z,noexecstack"
+    SHARED_CFLAGS='-fPIC'
+    GLOBAL_LDOPTS="-Wl,-z,defs -Wl,-z,noexecstack -fuse-ld=bfd"
     ANDROID_ARCH=$1 # for android.make too
-    gccchoice="4.6"
+    gccchoice="4.9"
     # arch dependant stuff
     case $ANDROID_ARCH in
         armeabi)
