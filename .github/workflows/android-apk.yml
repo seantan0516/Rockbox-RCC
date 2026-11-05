@@ -87,12 +87,21 @@ jobs:
           mkdir -p /tmp/apk-check
           unzip -q "$APK" 'lib/armeabi/*.so' -d /tmp/apk-check
           test -f /tmp/apk-check/lib/armeabi/librockbox.so
+          TEXTREL_FOUND=0
           for so in /tmp/apk-check/lib/armeabi/*.so; do
-            if readelf -d "$so" | grep -E 'TEXTREL|FLAGS.*TEXTREL'; then
+            if ! readelf -h "$so" >/dev/null 2>&1; then
+              echo "Skipping non-ELF payload: $so"
+              continue
+            fi
+            if readelf -d "$so" 2>/dev/null | grep -E 'TEXTREL|FLAGS.*TEXTREL'; then
               echo "ERROR: text relocations remain in $so"
-              exit 1
+              TEXTREL_FOUND=1
             fi
           done
+          if [ "$TEXTREL_FOUND" -ne 0 ]; then
+            echo "One or more Android native libraries still contain text relocations."
+            exit 1
+          fi
           "$ANDROID_HOME/build-tools/19.1.0/zipalign" -c 4 "$APK"
           jarsigner -verify "$APK"
           sha256sum "$APK" | tee /tmp/apk-sha256.txt
