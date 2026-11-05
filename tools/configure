@@ -851,7 +851,7 @@ androidndkcc()
     LDOPTS="$LDOPTS -ldl -llog"
     SHARED_LDFLAG="-shared"
     SHARED_CFLAGS=''
-    GLOBAL_LDOPTS="-Wl,-z,defs -Wl,-z,noexecstack"
+    GLOBAL_LDOPTS="-Wl,-z,defs -Wl,-z,noexecstack -Wl,-Map,librockbox.map"
 
     # arch dependant stuff
     case $1 in

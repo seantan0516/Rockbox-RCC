@@ -106,8 +106,18 @@ jobs:
             readelf -rW /tmp/apk-check/lib/armeabi/librockbox.so || true
             echo "===== librockbox.so section headers ====="
             readelf -SW /tmp/apk-check/lib/armeabi/librockbox.so || true
-            echo "===== librockbox.so ARM relocations (objdump) ====="
-            arm-linux-androideabi-objdump -R /tmp/apk-check/lib/armeabi/librockbox.so || true
+            TOOLCHAIN="$GITHUB_WORKSPACE/build-android/android-toolchain/bin"
+            echo "===== librockbox.so relocation source addresses ====="
+            "$TOOLCHAIN/arm-linux-androideabi-addr2line" -f -C -e /tmp/apk-check/lib/armeabi/librockbox.so 0x8ad84 0x8ad88 0x8ad8c 0x94468 0x9449c 0x944d0 || true
+            echo "===== librockbox.so disassembly around text relocation targets ====="
+            "$TOOLCHAIN/arm-linux-androideabi-objdump" -d -j .text --start-address=0x8ad60 --stop-address=0x8ada0 /tmp/apk-check/lib/armeabi/librockbox.so || true
+            "$TOOLCHAIN/arm-linux-androideabi-objdump" -d -j .text --start-address=0x94448 --stop-address=0x944e0 /tmp/apk-check/lib/armeabi/librockbox.so || true
+            echo "===== linker map excerpts ====="
+            if [ -s build-android/librockbox.map ]; then
+              grep -n -B 5 -A 5 -E '0008ad84|0008ad88|0008ad8c|00094468|0009449c|000944d0|\.text' build-android/librockbox.map | tail -n 240 || true
+            else
+              echo "ERROR: expected build-android/librockbox.map was not generated"
+            fi
             exit 1
           fi
           "$ANDROID_HOME/build-tools/19.1.0/zipalign" -c 4 "$APK"
@@ -120,7 +130,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rockbox-rcc-diagnostic-unverified
-          path: ${{ env.APK }}
+          path: |
+            ${{ env.APK }}
+            build-android/librockbox.map
           if-no-files-found: warn
           retention-days: 3
 
