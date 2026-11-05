@@ -167,7 +167,22 @@ public class RockboxService extends Service
                  * because there's no other way to ship files and have access
                  * to them from native code
                  */
-                File libMisc = new File("/data/data/org.rockbox/lib/libmisc.so");
+                /* Android installs native libraries in the package's native
+                 * library directory, which may be versioned and is not reliably
+                 * /data/data/org.rockbox/lib on modern Android releases.
+                 */
+                String nativeLibraryDir = getApplicationInfo().nativeLibraryDir;
+                File libMisc = new File(nativeLibraryDir, "libmisc.so");
+                Logger.d("Rockbox resource archive: " + libMisc.getAbsolutePath()
+                        + " exists=" + libMisc.isFile() + " readable=" + libMisc.canRead());
+                if (!libMisc.isFile() || !libMisc.canRead()) {
+                    Bundle bundle = new Bundle();
+                    bundle.putString("error", getString(R.string.error_extraction));
+                    putResult(RESULT_ERROR_OCCURED, bundle);
+                    rockbox_running = false;
+                    stopSelf();
+                    return;
+                }
                 /* use arbitrary file to determine whether extracting is needed */
                 File arbitraryFile = new File(rockboxCreditsPath, "credits.rock");
                 File rockboxInfoFile = new File(rockboxSdDirPath, "rockbox-info.txt");
