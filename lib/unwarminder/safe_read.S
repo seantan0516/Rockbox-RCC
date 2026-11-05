@@ -30,7 +30,9 @@ was_aborted:
 @ bool safe_read8(uint8_t *addr, uint8_t *value)
 safe_read8:
     @ was_aborted = 0
-    ldr     r2, =was_aborted
+    ldr     r2, .Lsafe_read8_was_aborted_offset
+.Lsafe_read8_pc:
+    add     r2, pc, r2
     mov     r3, #0
     str     r3, [r2]
     @ r0=*addr
@@ -50,6 +52,9 @@ safe_read8_faulty_addr:
     mov     r0, #1
     bx      lr
 .size       safe_read8, . - safe_read8
+.align 2
+.Lsafe_read8_was_aborted_offset:
+    .word   was_aborted - (.Lsafe_read8_pc + 8)
 
 .section    .text.safe_read16
 .type       safe_read16, %function
@@ -57,7 +62,9 @@ safe_read8_faulty_addr:
 @ bool safe_read16(uint16_t *addr, uint16_t *value)
 safe_read16:
     @ was_aborted = 0
-    ldr     r2, =was_aborted
+    ldr     r2, .Lsafe_read16_was_aborted_offset
+.Lsafe_read16_pc:
+    add     r2, pc, r2
     mov     r3, #0
     str     r3, [r2]
     @ r0=*addr
@@ -77,6 +84,9 @@ safe_read16_faulty_addr:
     mov     r0, #1
     bx      lr
 .size       safe_read16, . - safe_read16
+.align 2
+.Lsafe_read16_was_aborted_offset:
+    .word   was_aborted - (.Lsafe_read16_pc + 8)
 
 .section    .text.safe_read32
 .type       safe_read32, %function
@@ -84,7 +94,9 @@ safe_read16_faulty_addr:
 @ bool safe_read32(uint32_t *addr, uint32_t *value)
 safe_read32:
     @ was_aborted = 0
-    ldr     r2, =was_aborted
+    ldr     r2, .Lsafe_read32_was_aborted_offset
+.Lsafe_read32_pc:
+    add     r2, pc, r2
     mov     r3, #0
     str     r3, [r2]
     @ r0=*addr
@@ -104,6 +116,9 @@ safe_read32_faulty_addr:
     mov     r0, #1
     bx      lr
 .size       safe_read32, . - safe_read32
+.align 2
+.Lsafe_read32_was_aborted_offset:
+    .word   was_aborted - (.Lsafe_read32_pc + 8)
 
 #if (CONFIG_PLATFORM & PLATFORM_NATIVE)
 .section    .text.data_abort_handler

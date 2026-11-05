@@ -486,11 +486,13 @@ resample_hermite:
     cmp     r11, #4                     @
     add     r6, r6, r11, lsl #2         @ r6 += shift * 4
     bge     .hrs_dsloop_4               @
-    ldr     pc, [pc, r11, lsl #2]       @ branch to corresponding loop address
-    .word   0, 0
-    .word   .hrs_dsloop_1
-    .word   .hrs_dsloop_2
-    .word   .hrs_dsloop_3
+    @ Use direct PC-relative branches instead of absolute code pointers.
+    @ Downsampling advances by at least one source sample, so r11 is 1..3 here.
+    cmp     r11, #3
+    beq     .hrs_dsloop_3
+    cmp     r11, #2
+    beq     .hrs_dsloop_2
+    b       .hrs_dsloop_1
 
 .hrs_channel_done:
     ldmfd   sp!, { r10, r12 }           @ recover ch, h
