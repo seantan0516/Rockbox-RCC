@@ -258,7 +258,7 @@ III_aliasreduce:
     mov     r2, #8
     mov     r3, r0              @ a
     mov     r4, r0              @ b
-    ldr     r5, =csa            @ cs/ca
+    adr     r5, csa             @ PC-relative address keeps shared codec PIC-safe
 .arl2:
     ldmdb   r3, {r6, r12}
     ldmia   r4, {r7, lr}
