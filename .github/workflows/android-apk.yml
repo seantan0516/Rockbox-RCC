@@ -100,12 +100,29 @@ jobs:
           done
           if [ "$TEXTREL_FOUND" -ne 0 ]; then
             echo "One or more Android native libraries still contain text relocations."
+            echo "===== librockbox.so dynamic section ====="
+            readelf -dW /tmp/apk-check/lib/armeabi/librockbox.so || true
+            echo "===== librockbox.so dynamic relocations ====="
+            readelf -rW /tmp/apk-check/lib/armeabi/librockbox.so || true
+            echo "===== librockbox.so section headers ====="
+            readelf -SW /tmp/apk-check/lib/armeabi/librockbox.so || true
+            echo "===== librockbox.so ARM relocations (objdump) ====="
+            arm-linux-androideabi-objdump -R /tmp/apk-check/lib/armeabi/librockbox.so || true
             exit 1
           fi
           "$ANDROID_HOME/build-tools/19.1.0/zipalign" -c 4 "$APK"
           jarsigner -verify "$APK"
           sha256sum "$APK" | tee /tmp/apk-sha256.txt
           echo "Verified APK: $APK"
+
+      - name: Upload diagnostic APK when native verification fails
+        if: failure() && env.APK != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: rockbox-rcc-diagnostic-unverified
+          path: ${{ env.APK }}
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Upload verified APK
         uses: actions/upload-artifact@v4
