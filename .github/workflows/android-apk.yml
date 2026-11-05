@@ -93,7 +93,15 @@ jobs:
           # Validate its payload so incomplete resources cannot be published.
           unzip -tq /tmp/apk-check/lib/armeabi/libmisc.so
           unzip -Z1 /tmp/apk-check/lib/armeabi/libmisc.so | tee /tmp/rockbox-resource-list.txt
-          grep -q '^\.rockbox/rockbox-info.txt
+          grep -Fqx '.rockbox/rockbox-info.txt' /tmp/rockbox-resource-list.txt
+          grep -Fqx '.rockbox/wps/rockbox_failsafe.wps' /tmp/rockbox-resource-list.txt
+          grep -Fqx '.rockbox/langs/chinese-simp.lng' /tmp/rockbox-resource-list.txt
+          grep -Fq '.rockbox/fonts/' /tmp/rockbox-resource-list.txt
+          PLUGIN_COUNT=$(grep -c '.rockbox/rocks/' /tmp/rockbox-resource-list.txt || true)
+          test "$PLUGIN_COUNT" -ge 20
+          echo "Rockbox resources verified: $PLUGIN_COUNT plugin entries and font payload present."
+
+          TEXTREL_FOUND=0
           for so in /tmp/apk-check/lib/armeabi/*.so; do
             if ! readelf -h "$so" >/dev/null 2>&1; then
               echo "Skipping non-ELF payload: $so"
