@@ -106,15 +106,34 @@ jobs:
             readelf -rW /tmp/apk-check/lib/armeabi/librockbox.so || true
             echo "===== librockbox.so section headers ====="
             readelf -SW /tmp/apk-check/lib/armeabi/librockbox.so || true
-            TOOLCHAIN="$GITHUB_WORKSPACE/build-android/android-toolchain/bin"
+            TOOLCHAIN="$ANDROID_NDK_PATH/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin"
+            test -x "$TOOLCHAIN/arm-linux-androideabi-addr2line"
+            test -x "$TOOLCHAIN/arm-linux-androideabi-objdump"
             echo "===== librockbox.so relocation source addresses ====="
             "$TOOLCHAIN/arm-linux-androideabi-addr2line" -f -C -e /tmp/apk-check/lib/armeabi/librockbox.so 0x8ad84 0x8ad88 0x8ad8c 0x94468 0x9449c 0x944d0 || true
             echo "===== librockbox.so disassembly around text relocation targets ====="
             "$TOOLCHAIN/arm-linux-androideabi-objdump" -d -j .text --start-address=0x8ad60 --stop-address=0x8ada0 /tmp/apk-check/lib/armeabi/librockbox.so || true
             "$TOOLCHAIN/arm-linux-androideabi-objdump" -d -j .text --start-address=0x94448 --stop-address=0x944e0 /tmp/apk-check/lib/armeabi/librockbox.so || true
-            echo "===== linker map excerpts ====="
+            echo "===== linker map input sections covering text relocation targets ====="
             if [ -s build-android/librockbox.map ]; then
-              grep -n -B 5 -A 5 -E '0008ad84|0008ad88|0008ad8c|00094468|0009449c|000944d0|\.text' build-android/librockbox.map | tail -n 240 || true
+              python3 - <<'PY'
+            import re
+            targets = [0x8ad84, 0x8ad88, 0x8ad8c, 0x94468, 0x9449c, 0x944d0]
+            rows = []
+            with open("build-android/librockbox.map", errors="replace") as f:
+                for no, line in enumerate(f, 1):
+                    m = re.match(r"^\\s*(\\.[^\\s]+)\\s+(0x[0-9a-fA-F]+)\\s+(0x[0-9a-fA-F]+)\\s+(.*)$", line)
+                    if m:
+                        rows.append((no, int(m.group(2), 16), int(m.group(3), 16), line.rstrip()))
+            for target in targets:
+                matches = [r for r in rows if r[1] <= target < r[1] + r[2]]
+                print(f"target 0x{target:x}:")
+                if matches:
+                    for no, addr, size, line in matches:
+                        print(f"  map line {no}: {line}")
+                else:
+                    print("  no input-section range matched")
+            PY
             else
               echo "ERROR: expected build-android/librockbox.map was not generated"
             fi
