@@ -117,24 +117,7 @@ jobs:
             echo "===== linker map input sections covering text relocation targets ====="
             MAP="build-android/rockbox.map"
             if [ -s "$MAP" ]; then
-              python3 -c 'exec("""
-import re, sys
-targets = [0x8ad84, 0x8ad88, 0x8ad8c, 0x94468, 0x9449c, 0x944d0]
-rows = []
-with open(sys.argv[1], errors="replace") as f:
-    for no, line in enumerate(f, 1):
-        m = re.match(r"^\\s*(\\.[^\\s]+)\\s+(0x[0-9a-fA-F]+)\\s+(0x[0-9a-fA-F]+)\\s+(.*)$", line)
-        if m:
-            rows.append((no, int(m.group(2), 16), int(m.group(3), 16), line.rstrip()))
-for target in targets:
-    matches = [r for r in rows if r[1] <= target < r[1] + r[2]]
-    print(f"target 0x{target:x}:")
-    if matches:
-        for no, addr, size, line in matches:
-            print(f"  map line {no}: {line}")
-    else:
-        print("  no input-section range matched")
-""")' "$MAP"
+              python3 -c 'exec("import sys\\ntargets=[0x8ad84,0x8ad88,0x8ad8c,0x94468,0x9449c,0x944d0]\\nrows=[]\\nfor no,line in enumerate(open(sys.argv[1],errors=\\x27replace\\x27),1):\\n parts=line.split(None,3)\\n if len(parts)>=4 and parts[0].startswith(\\x27.\\x27) and parts[1].startswith(\\x270x\\x27) and parts[2].startswith(\\x270x\\x27):\\n  rows.append((no,int(parts[1],16),int(parts[2],16),line.rstrip()))\\nfor target in targets:\\n matches=[r for r in rows if r[1] <= target < r[1]+r[2]]\\n print(\\x27target 0x%x:\\x27 % target)\\n for row in matches: print(\\x27  map line %d: %s\\x27 % (row[0],row[3]))\\n if not matches: print(\\x27  no input-section range matched\\x27)")' "$MAP"
             else
               echo "ERROR: expected $MAP was not generated"
             fi
