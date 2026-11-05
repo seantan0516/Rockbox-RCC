@@ -56,6 +56,7 @@ jobs:
           # Verify GCC can select the bundled BFD linker and emit the same map files used by codec links.
           printf "int main(void) { return 0; }\n" | "$TOOLCHAIN/arm-linux-androideabi-gcc" -fuse-ld=bfd -x c - -Wl,-Map,/tmp/android-bfd-test.map -o /tmp/android-bfd-test
           test -s /tmp/android-bfd-test.map
+          echo "BFD linker selection and map-file smoke test passed."
           "$TOOLCHAIN/arm-linux-androideabi-gcc" -### -fuse-ld=bfd -x c - -o /tmp/android-bfd-test 2>&1 | grep -E "ld\.bfd|/ld.bfd"
           echo "ANDROID_NDK_PATH=$NDK" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_PATH=$ANDROID_HOME" >> "$GITHUB_ENV"
