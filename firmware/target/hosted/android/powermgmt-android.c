@@ -22,6 +22,7 @@
 
 #include <jni.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "config.h"
 
 extern JNIEnv* getJavaEnvironment(void);
