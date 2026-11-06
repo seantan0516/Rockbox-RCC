@@ -87,6 +87,17 @@ jobs:
           mkdir -p /tmp/apk-check
           unzip -q "$APK" 'lib/armeabi/*.so' -d /tmp/apk-check
           test -f /tmp/apk-check/lib/armeabi/librockbox.so
+          # Verify the complete Rockbox data archive is packaged in libmisc.so.
+          unzip -p "$APK" lib/armeabi/libmisc.so > /tmp/rockbox-resources.zip
+          unzip -tq /tmp/rockbox-resources.zip
+          unzip -Z1 /tmp/rockbox-resources.zip | tee /tmp/rockbox-resource-list.txt
+          grep -Fqx '.rockbox/rockbox-info.txt' /tmp/rockbox-resource-list.txt
+          grep -Fqx '.rockbox/themes/rockbox_failsafe.cfg' /tmp/rockbox-resource-list.txt
+          grep -Fqx '.rockbox/langs/chinese-simp.lng' /tmp/rockbox-resource-list.txt
+          grep -Eq '^\.rockbox/fonts/[^/]+\.fnt$' /tmp/rockbox-resource-list.txt
+          PLUGIN_COUNT=$(grep -Ec '^\.rockbox/rocks/(games|apps|demos|viewers)/[^/]+\.(rock|lua)$' /tmp/rockbox-resource-list.txt || true)
+          test "$PLUGIN_COUNT" -ge 20
+          echo "Rockbox resources verified: $PLUGIN_COUNT plugin entries and font payload present."
           TEXTREL_FOUND=0
           for so in /tmp/apk-check/lib/armeabi/*.so; do
             if ! readelf -h "$so" >/dev/null 2>&1; then
@@ -141,7 +152,17 @@ jobs:
             exit 1
           fi
           "$ANDROID_HOME/build-tools/19.1.0/zipalign" -c 4 "$APK"
-          jarsigner -verify "$APK"
+          echo "zipalign verification passed."
+          jarsigner -verify -verbose -certs "$APK" > /tmp/jarsigner-verify.txt 2>&1
+          grep -Fq 'jar verified.' /tmp/jarsigner-verify.txt
+          grep -Fq 'Digest algorithm: SHA-256' /tmp/jarsigner-verify.txt
+          grep -Fq 'Signature algorithm: SHA256withRSA, 2048-bit key' /tmp/jarsigner-verify.txt
+          if grep -Eiq 'treated as unsigned|weak algorithm|disabled by the security property|MD5withRSA|SHA1 \(disabled\)' /tmp/jarsigner-verify.txt; then
+            cat /tmp/jarsigner-verify.txt
+            echo "ERROR: APK signature is weak or was not verified."
+            exit 1
+          fi
+          echo "jarsigner verification passed with SHA-256 / SHA256withRSA-2048."
           sha256sum "$APK" | tee /tmp/apk-sha256.txt
           echo "Verified APK: $APK"
 

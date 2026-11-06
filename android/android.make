@@ -151,23 +151,31 @@ $(TEMP_APK): $(AP_) $(LIBS) $(DEX) | $(DIRS)
 
 $(KEYSTORE):
 	$(SILENT)mkdir -p $(HOME)/.android
-	$(call PRINTS,KEYTOOL rockbox.keystore)keytool -genkey \
+	$(call PRINTS,KEYTOOL rockbox.keystore)keytool -genkeypair \
 		-alias rockboxkey -keystore $@ \
 		-storepass rbtheme.5d6d.net -keypass rbtheme.5d6d.net -validity 40000 \
-		-sigalg MD5withRSA -keyalg RSA -keysize 1024 \
+		-sigalg SHA256withRSA -keyalg RSA -keysize 2048 \
 		-dname "CN=zhkailing,O=zhkailing-PC,C=CN"
 
+.PHONY: check-keystore
+check-keystore: $(KEYSTORE)
+	$(SILENT)keytool -list -v -keystore "$(KEYSTORE)" -storepass "rbtheme.5d6d.net" > "$(BUILDDIR)/rockbox-keystore-info.txt"
+	$(SILENT)if ! grep -Fq "Signature algorithm name: SHA256withRSA" "$(BUILDDIR)/rockbox-keystore-info.txt" || ! grep -Fq "2048-bit RSA key" "$(BUILDDIR)/rockbox-keystore-info.txt"; then \
+		echo "ERROR: the existing Rockbox keystore is weak; back it up and replace it with a SHA256withRSA/2048-bit key before signing." >&2; \
+		exit 1; \
+	fi
+
 ifdef NODEPS
-$(APK): $(TEMP_APK) $(KEYSTORE)
+$(APK): $(TEMP_APK) check-keystore
 else
-$(APK): $(TEMP_APK) $(BUILDDIR)/rockbox.zip $(KEYSTORE)
+$(APK): $(TEMP_APK) $(BUILDDIR)/rockbox.zip check-keystore
 endif
 	$(SILENT)rm -f $@
 	$(SILENT)echo "SIGN rockbox-rcc-`git rev-parse --verify --short HEAD`-$(LCD_WIDTH)x$(LCD_HEIGHT).apk"
 	$(SILENT)jarsigner \
 		-keystore "$(KEYSTORE)" -storepass "rbtheme.5d6d.net" -keypass "rbtheme.5d6d.net" \
 		-signedjar $(TEMP_APK2) $(TEMP_APK) "rockboxkey" \
-		-sigalg MD5withRSA -digestalg SHA1
+		-sigalg SHA256withRSA -digestalg SHA-256
 	$(SILENT)echo "ZIPALIGN rockbox-rcc-`git rev-parse --verify --short HEAD`-$(LCD_WIDTH)x$(LCD_HEIGHT).apk"
 	$(SILENT)$(ZIPALIGN) -v 4 $(TEMP_APK2) $@ > /dev/null
 
