@@ -757,8 +757,8 @@ androidcc () {
         exit
     fi
     if [ -z "$ANDROID_NDK_PATH" ]; then
-        echo "ERROR: You need the Android NDK installed (r16 or higher) and have the ANDROID_NDK_PATH"
-        echo "environment variable point to the root directory of the Android NDK."
+        echo "ERROR: You need an Android NDK with the ARM GCC 4.9 toolchain and android-16 sysroot."
+        echo "Set ANDROID_NDK_PATH to the root directory of that NDK installation."
         exit
     fi
     buildhost=$(uname | tr "[:upper:]" "[:lower:]")
