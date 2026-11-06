@@ -46,9 +46,9 @@ jobs:
 
       - name: Install legacy NDK with ARMv5 GCC toolchain
         run: |
-          curl -fL --retry 3 -o /tmp/android-ndk-r10e-linux-x86_64.bin https://dl.google.com/android/ndk/android-ndk-r10e-linux-x86_64.bin
-          chmod +x /tmp/android-ndk-r10e-linux-x86_64.bin
-          /tmp/android-ndk-r10e-linux-x86_64.bin -y
+          # NDK r10e is distributed as a ZIP from the archived repository; the old .bin URL is invalid.
+          curl -fL --retry 3 -o /tmp/android-ndk-r10e-linux-x86_64.zip https://dl.google.com/android/repository/android-ndk-r10e-linux-x86_64.zip
+          unzip -q /tmp/android-ndk-r10e-linux-x86_64.zip -d "$GITHUB_WORKSPACE"
           NDK="$GITHUB_WORKSPACE/android-ndk-r10e"
           TOOLCHAIN="$NDK/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin"
           test -x "$TOOLCHAIN/arm-linux-androideabi-gcc"
