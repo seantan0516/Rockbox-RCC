@@ -196,6 +196,13 @@ public class RockboxService extends Service
                     Bundle bdata = new Bundle();
                     bdata.putBoolean("unzip", doExtract);
                     System.loadLibrary("rockbox");
+                    /* Initialize the Java battery monitor before entering the
+                     * deeply nested native Rockbox main loop. */
+                    try {
+                        initBatteryMonitor(new org.rockbox.monitors.BatteryMonitor(RockboxService.this));
+                    } catch (Throwable e) {
+                        Logger.d("Battery monitor initialization failed: " + e);
+                    }
                     putResult(RESULT_LIB_LOADED, bdata);
                     lock.notify();
                 }
@@ -316,6 +323,8 @@ public class RockboxService extends Service
             }
         }
     }
+
+    private native void initBatteryMonitor(org.rockbox.monitors.BatteryMonitor monitor);
 
     private native void main();
 

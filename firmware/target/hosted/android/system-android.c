@@ -90,8 +90,10 @@ JNI_OnLoad(JavaVM *vm, void* reserved)
 
 JNIEnv* getJavaEnvironment(void)
 {
-    JNIEnv* env;
-    (*vm_ptr)->GetEnv(vm_ptr, (void**) &env, JNI_VERSION_1_2);
+    JNIEnv* env = NULL;
+    if (vm_ptr == NULL ||
+        (*vm_ptr)->GetEnv(vm_ptr, (void**) &env, JNI_VERSION_1_2) != JNI_OK)
+        return NULL;
     return env;
 }
 
